@@ -31,7 +31,7 @@
  * @Author       : MCD
  * @Date         : 2021-07-22 15:10:02
  * @LastEditors  : MCD
- * @LastEditTime : 2021-07-23 14:40:15
+ * @LastEditTime : 2021-07-23 15:08:35
  * @FilePath     : /My_ChartRoom/src/Client/TCP_Client.c
  * @Description  : 
  * 
@@ -61,7 +61,9 @@ void *client_func(void *arg)
         if(login_f != 1)
             continue;
         memset(buf, 0, sizeof(buf));
+        // print_mcd("login flag = %d", login_f);
         len = read(sockfd, buf, sizeof(buf));
+        // print_mcd("read len = %d", len);
         if(len <= 0)
         {
             close(sockfd);
@@ -79,8 +81,8 @@ void *client_func(void *arg)
             continue;
         }
 
-        buf[len] = '\0';
-        print_mcd("msg data = %s", msg->data);
+        // buf[len] = '\0';
+        print_mcd("msg data = %s", buf);
     }
     
 }

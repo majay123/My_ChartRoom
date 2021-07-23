@@ -31,7 +31,7 @@
  * @Author       : MCD
  * @Date         : 2021-07-22 14:13:31
  * @LastEditors  : MCD
- * @LastEditTime : 2021-07-23 14:50:49
+ * @LastEditTime : 2021-07-23 16:47:03
  * @FilePath     : /My_ChartRoom/src/Server/TCP_Server.c
  * @Description  : 
  * 
@@ -107,10 +107,22 @@ int add_user(int fd, protolcol_t *msg)
 */
 void broadcast_msg(int index, protolcol_t *msg)
 {
-    // int i;
+    int i;
+    char buf[GET_BUFFER_SIZE] = {0};
 
-    print_mcd("client %s, %d", online_info[index].name, index);
-    print_mcd("data: %s", msg->data);
+    // print_mcd("client %s, %d", online_info[index].name, index);
+    // print_mcd("data: %s", msg->data);
+    snprintf(buf, GET_BUFFER_SIZE, "%s say: %s", online_info[index].name, msg->data);
+    for ( i = 0; i < MAX_USER_NUM; i++)
+    {
+        if(online_info[i].fd < 0)
+            continue;
+        // 登陆客户端 就不用发了
+        if(strcmp(online_info[index].name, online_info[i].name) == 0)
+            continue;
+        write(online_info[i].fd, buf, strlen(buf));
+    }
+    
     
 }
 
@@ -169,13 +181,63 @@ int find_dest_user(char *name)
     
 }
 
+/**
+* @author  		MCD
+* @date  		2021-07-23-16:14
+* @details		private msg
+*/
 void private_msg(int index, protolcol_t *msg)
 {
+    int ret = -1;
+    char buf[GET_BUFFER_SIZE] = {0};
 
+    if(msg == NULL)
+        return;
+    
+    ret = find_dest_user(msg->name);
+    if(ret < 0)
+    {
+        snprintf(buf, GET_BUFFER_SIZE, "%s", "there is no user");
+        write(online_info[index].fd, buf, strlen(buf));
+        return;
+    }
+        
+    if(online_info[ret].fd < 0)
+    {
+        snprintf(buf, GET_BUFFER_SIZE, "%s offline", online_info[ret].name);
+        write(online_info[index].fd, buf, strlen(buf));
+        return;
+    }
+    snprintf(buf, GET_BUFFER_SIZE, "%s to %s: %s", online_info[index].name, online_info[ret].name, msg->data);
+    write(online_info[ret].fd, buf, strlen(buf));
 }
+
+/**
+* @author  		MCD
+* @date  		2021-07-23-16:14
+* @details		list online user
+*/
 void list_online_user(int index)
 {
+    int i;
+    // int ret = -1;
+    char buf[GET_BUFFER_SIZE] = {0};
+    // char buf1[GET_BUFFER_SIZE] = {0};
 
+    for ( i = 0; i < MAX_USER_NUM; i++)
+    {
+        if(online_info[i].flage == 1)
+        {
+            strcat(buf, online_info[i].name);
+            strcat(buf, "\t");
+
+            // snprintf(buf, GET_BUFFER_SIZE, "%s \t", online_info[i].name);
+            // snprintf(buf1, GET_BUFFER_SIZE, "%s%s \t", buf, online_info[i].name);
+        }
+    }
+    
+     
+    write(online_info[index].fd, buf, strlen(buf));
 }
 
 /**
@@ -250,9 +312,12 @@ void login(int fd, int *index, protolcol_t *msg)
     {
         if(online_info[i].fd < 0)
             continue;
-        print_mcd("fd = %d, %s", online_info[i].fd, buf);
-        int len = write(online_info[i].fd, buf, strlen(buf));
-        print_mcd("len = %d", len);
+        // 登陆客户端 就不用发了
+        if(strcmp(online_info[*index].name, online_info[i].name) == 0)
+            continue;
+        // print_mcd("fd = %d, %s", online_info[i].fd, buf);
+        write(online_info[i].fd, buf, strlen(buf));
+        // print_mcd("len = %d", len);
     }
     
 }
@@ -406,5 +471,6 @@ int main(int argc, char const *argv[])
         }
         
     }
+    // pthread_join()
     exit(0);   
 }

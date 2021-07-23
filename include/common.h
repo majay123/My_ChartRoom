@@ -81,7 +81,7 @@
 #define SERVER_PORT         (8879)
 #define BUFFER_SIZE         (32)
 #define MAX_USER_NUM        (64)
-#define GET_BUFFER_SIZE     BUFFER_SIZE * 4
+#define GET_BUFFER_SIZE     BUFFER_SIZE * 5
 
 // 在线用户
 typedef struct
