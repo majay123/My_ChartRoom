@@ -1,0 +1,4 @@
+src/Client/client
+src/Client/TCP_Client.o
+src/Server/TCP_Server.o
+src/Server/server
