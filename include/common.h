@@ -31,7 +31,7 @@
  * @Author       : MCD
  * @Date         : 2021-07-22 13:43:51
  * @LastEditors  : MCD
- * @LastEditTime : 2021-07-22 15:59:58
+ * @LastEditTime : 2021-07-23 13:13:04
  * @FilePath     : /My_ChartRoom/include/common.h
  * @Description  : 
  * 
@@ -55,7 +55,6 @@
 #include <pthread.h>
 
 
-#define RECV_BUFF_SIZE      (2048)
 
 #define PRINT_MCD_ENABLE 1
 
@@ -77,6 +76,51 @@
 #else
     #define print_mcd(format, arg...)   do {} while (0)
 #endif
+
+#define RECV_BUFF_SIZE      (2048)
+#define SERVER_PORT         (8879)
+#define BUFFER_SIZE         (32)
+#define MAX_USER_NUM        (64)
+#define GET_BUFFER_SIZE     BUFFER_SIZE * 4
+
+// 在线用户
+typedef struct
+{
+    int fd;                     // -1
+    char flage;                 //reagsted or not
+    char name[BUFFER_SIZE];
+    char passwd[BUFFER_SIZE * 2];
+}Online_info_t;
+
+
+//C/S通信结构体
+typedef struct 
+{
+    int cmd;
+    int state;
+    char name[BUFFER_SIZE];
+    char data[BUFFER_SIZE * 2];
+}protolcol_t;
+
+// cmd
+#define CMD_BROADCAST       0x00000001
+#define CMD_PRIVATE         0x00000002
+#define CMD_REGISTER        0x00000004
+#define CMD_LOGIN           0x00000008
+#define CMD_ONLINEUSER      0x00000010
+#define CMD_LOGOUT          0x00000020
+
+
+// return code
+#define OP_OK               0x80000000
+#define ONLINEUSER_OK       0x80000001
+#define ONLINEUSER_OVER     0x80000002
+#define NAME_EXIST          0x80000003
+#define NAME_PWD_NMATCH     0x80000004
+#define USER_LOGED          0x80000005
+#define USER_NOT_REGISTER   0x80000006
+
+
 
 
 #endif // !__COMMON_H__
