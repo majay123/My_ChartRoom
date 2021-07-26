@@ -31,7 +31,7 @@
  * @Author       : MCD
  * @Date         : 2021-07-22 15:10:02
  * @LastEditors  : MCD
- * @LastEditTime : 2021-07-23 15:08:35
+ * @LastEditTime : 2021-07-26 12:40:19
  * @FilePath     : /My_ChartRoom/src/Client/TCP_Client.c
  * @Description  : 
  * 
@@ -56,7 +56,7 @@ void *client_func(void *arg)
     char buf[128] = {0};
     protolcol_t *msg;
 
-    while (1)
+    while (sockfd > 0)
     {
         if(login_f != 1)
             continue;
@@ -80,11 +80,15 @@ void *client_func(void *arg)
             print_mcd("online user over!");
             continue;
         }
+        if(msg->cmd == CMD_LOGOUT)
+            return NULL;
 
         // buf[len] = '\0';
         print_mcd("msg data = %s", buf);
     }
-    
+    print_mcd("pthread exit");
+
+    return NULL;
 }
 
 /**
@@ -92,16 +96,20 @@ void *client_func(void *arg)
 * @date  		2021-07-22-17:11
 * @details		broadcast
 */
-void broadcast_msg(int fd)
+static int broadcast_msg(int fd)
 {
     protolcol_t msg;
+    size_t len;
 
     memset(&msg, 0, sizeof(protolcol_t));
     msg.cmd = CMD_BROADCAST;
     printf("say: \n#");
     scanf("%s", msg.data);
 
-    write(fd, &msg, sizeof(protolcol_t));
+    len = write(fd, &msg, sizeof(protolcol_t));
+    if(len < 0)
+        return -1;
+    return 0;
 }
 
 /**
@@ -109,9 +117,10 @@ void broadcast_msg(int fd)
 * @date  		2021-07-22-17:13
 * @details		private
 */
-void private_msg(int fd)
+static int private_msg(int fd)
 {
     protolcol_t msg;
+    size_t len = 0;
     
     memset(&msg, 0, sizeof(protolcol_t));
     msg.cmd = CMD_PRIVATE;
@@ -121,19 +130,28 @@ void private_msg(int fd)
     printf("say: \n#");
     scanf("%s", msg.data);
 
-    write(fd, &msg, sizeof(protolcol_t));
+    len = write(fd, &msg, sizeof(protolcol_t));
+    if(len < 0)
+        return -1;
+    return 0;
+    
 }
 
-void list_online_user(int fd)
+static int list_online_user(int fd)
 {
     protolcol_t msg;
+    size_t len = 0;
 
     memset(&msg, 0, sizeof(protolcol_t));
     msg.cmd = CMD_ONLINEUSER;
-    write(fd, &msg, sizeof(protolcol_t));
+    len = write(fd, &msg, sizeof(protolcol_t));
 
     getchar();
     getchar();
+
+    if(len < 0)
+        return -1;
+    return 0;
     
 }
 
@@ -142,7 +160,7 @@ void list_online_user(int fd)
 * @date  		2021-07-22-17:19
 * @details		registe
 */
-int registe(int fd)
+static int registe(int fd)
 {
     protolcol_t msg, reply;
     ssize_t len = 0;
@@ -156,9 +174,9 @@ int registe(int fd)
     scanf("%s", msg.data);
     
     // print_mcd("regist name = %s, passwd = %s", msg.name, msg.data);
-    print_mcd("fd = %d", fd);
+    // print_mcd("fd = %d", fd);
     len = write(fd, &msg, sizeof(protolcol_t));
-    print_mcd("write len = %d", len);
+    // print_mcd("write len = %d", len);
     read(fd, &reply, sizeof(protolcol_t));
 
     if(reply.state != OP_OK)
@@ -183,7 +201,7 @@ int registe(int fd)
 * @date  		2021-07-23-08:40
 * @details		login
 */
-int login(int fd)
+static int login(int fd)
 {
     protolcol_t msg, reply;
 
@@ -219,13 +237,35 @@ int login(int fd)
 * @date  		2021-07-23-08:47
 * @details		logout
 */
-void logout(int fd)
+static int logout(int fd)
 {
-    // protolcol_t msg;
+    protolcol_t msg;
+    size_t len = 0;
+    
+    size_t size =  sizeof(protolcol_t);
+    memset(&msg, 0, size);
+    msg.cmd = CMD_LOGOUT;
+    len = write(fd, &msg, size);
+    getchar();
+    // getchar();
+
     close(fd);
     login_f = -1;
+
+    if(len < 0)
+        return -1;
+    return 0;
 }
 
+
+static client_cmd_t cc_func[] = {
+    {S_LOGOUT,      logout},
+    {S_REGISET,     registe},
+    {S_LOGIN,       login},
+    {S_BROADCAST,   broadcast_msg},
+    {S_PRIVATE,     private_msg},
+    {S_ONLINE_LIST, list_online_user},
+};
 
 /**
 * @author  		MCD
@@ -234,64 +274,70 @@ void logout(int fd)
 */
 int main(int argc, char const *argv[])
 {
-     int sel;
+    int sel;
     //  int ret;
-     int min_sel, max_sel;
-     int protnumber;
+    int min_sel, max_sel;
+    int protnumber;
+    int i = 0;
 
     //  protolcol_t msg;
 
-     if(argc < 3)
-     {
-        printf("cmd: %s ip portnumber\n",argv[0]);
+    if (argc < 3)
+    {
+        printf("cmd: %s ip portnumber\n", argv[0]);
         return -1;
-     }
+    }
 
-     //argv 2 参数为端口号 
-     if((protnumber = atoi(argv[2])) < 0)
-     {
-        fprintf(stderr,"Usage:%s hostname portnumber\a\n",argv[0]);
+    //argv 2 参数为端口号
+    if ((protnumber = atoi(argv[2])) < 0)
+    {
+        fprintf(stderr, "Usage:%s hostname portnumber\a\n", argv[0]);
         exit(1);
-     }
+    }
 
-     sockfd = socket(PF_INET, SOCK_STREAM, 0);
-     print_mcd("socket fd = %d",  sockfd);
-     if(sockfd < 0)
-     {
-         perror("socket failed!\n");
-         return -1;
-     }
+    sockfd = socket(PF_INET, SOCK_STREAM, 0);
+    print_mcd("socket fd = %d", sockfd);
+    if (sockfd < 0)
+    {
+        perror("socket failed!\n");
+        return -1;
+    }
 
-     server_addr.sin_addr.s_addr = inet_addr(argv[1]);
-     server_addr.sin_family = PF_INET;
-     server_addr.sin_port = htons(protnumber);
+    server_addr.sin_addr.s_addr = inet_addr(argv[1]);
+    server_addr.sin_family = PF_INET;
+    server_addr.sin_port = htons(protnumber);
 
-     addrlen = sizeof(struct sockaddr_in);
+    addrlen = sizeof(struct sockaddr_in);
 
-     connect(sockfd, (struct sockaddr *)&server_addr, addrlen);
-     pthread_create(&tid, NULL, client_func, NULL);
-     while (1)
-     {
+    connect(sockfd, (struct sockaddr *)&server_addr, addrlen);
+    pthread_create(&tid, NULL, client_func, NULL);
+    while (1)
+    {
         // system("clear");
-        if(login_f == -1)
+        if (login_f == -1)
         {
             printf("\t 1 注册 \n");
             printf("\t 2 登陆 \n");
         }
-        else if(login_f == 1)
+        else if (login_f == 1)
         {
             printf("\t 3 公聊 \n");
             printf("\t 4 私聊 \n");
             printf("\t 5 在线列表 \n");
         }
         printf("\t 0 退出 \n");
-        
+
         fflush(stdin);
         scanf("%d", &sel);
-        if(sel == 0)    
+        if (sel == 0)
+        {
+            print_mcd("client logout!!");
+            logout(sockfd);
+            sockfd = -1;
             goto Exit;
+        }
 
-        if(login_f == 1)
+        if (login_f == 1)
         {
             min_sel = 3;
             max_sel = 5;
@@ -302,39 +348,21 @@ int main(int argc, char const *argv[])
             max_sel = 2;
         }
 
-        if(sel < min_sel || sel > max_sel)
+        if (sel < min_sel || sel > max_sel)
         {
             print_mcd("Vaild choice, try again!");
             continue;
         }
-
-        switch (sel)
+        for ( i = 0; i < ARRAY_SIZE(cc_func); i++)
         {
-        case 1:
-            registe(sockfd);
-            break;
-        case 2:
-            login(sockfd);
-            break;
-        case 3:
-            broadcast_msg(sockfd);
-            break;
-        case 4:
-            private_msg(sockfd);
-            break;
-        case 5:
-            list_online_user(sockfd);
-            break;
-        case 0:
-            logout(sockfd);
-            break;
-        
-        default:
-            break;
+            if(sel == cc_func[i].cmd)
+            {
+                // print_mcd("sel = %d", sel);
+                cc_func[i].func(sockfd);
+            }
         }
-     }       
+    }
 Exit:
+    pthread_join(tid, NULL);
     exit(0);
-     
 }
-

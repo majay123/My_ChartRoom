@@ -31,7 +31,7 @@
  * @Author       : MCD
  * @Date         : 2021-07-22 13:43:51
  * @LastEditors  : MCD
- * @LastEditTime : 2021-07-23 13:13:04
+ * @LastEditTime : 2021-07-26 12:32:13
  * @FilePath     : /My_ChartRoom/include/common.h
  * @Description  : 
  * 
@@ -92,6 +92,20 @@ typedef struct
     char passwd[BUFFER_SIZE * 2];
 }Online_info_t;
 
+// Client
+typedef struct
+{
+    int sock_fd;
+    char login;
+}Client_info_t;
+
+typedef int(*cmd_do_func)(int);
+
+typedef struct{
+    char cmd;
+    cmd_do_func func;
+}client_cmd_t;
+
 
 //C/S通信结构体
 typedef struct 
@@ -101,6 +115,16 @@ typedef struct
     char name[BUFFER_SIZE];
     char data[BUFFER_SIZE * 2];
 }protolcol_t;
+
+enum Client_select
+{
+    S_LOGOUT = 0,
+    S_REGISET,
+    S_LOGIN,
+    S_BROADCAST,
+    S_PRIVATE,
+    S_ONLINE_LIST,
+};
 
 // cmd
 #define CMD_BROADCAST       0x00000001
@@ -120,7 +144,8 @@ typedef struct
 #define USER_LOGED          0x80000005
 #define USER_NOT_REGISTER   0x80000006
 
-
+#define NELEM(x) ((int) (sizeof(x) / sizeof((x)[0])))
+#define ARRAY_SIZE(A)    (sizeof(A)/sizeof((A)[0]))
 
 
 #endif // !__COMMON_H__

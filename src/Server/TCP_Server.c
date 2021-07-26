@@ -31,7 +31,7 @@
  * @Author       : MCD
  * @Date         : 2021-07-22 14:13:31
  * @LastEditors  : MCD
- * @LastEditTime : 2021-07-23 16:47:03
+ * @LastEditTime : 2021-07-26 10:35:35
  * @FilePath     : /My_ChartRoom/src/Server/TCP_Server.c
  * @Description  : 
  * 
@@ -54,11 +54,15 @@ pthread_t tid;
 void del_user_online(int index)
 {
     int i;
+    protolcol_t msg;
     char buf[GET_BUFFER_SIZE] = {0};
     
     if(index < 0)
         return;
     
+    memset(&msg, 0, sizeof(protolcol_t));
+    msg.cmd = CMD_LOGOUT;
+    write(online_info[index].fd, &msg, sizeof(protolcol_t));
     online_info[index].fd = -1;
     sprintf(buf, "%s offline\n", online_info[index].name);
     // 通知所有用户客户端 某个客户端下线了
@@ -371,6 +375,11 @@ void *rec_func(void *arg)
             case CMD_ONLINEUSER:
                 list_online_user(index);
                 break;
+            case CMD_LOGOUT:
+                // print_mcd("index = %d, %s offline", index, online_info[index].name);
+                del_user_online(index);
+                close(new_fd);
+                break;
             default:
                 break;
             }
@@ -439,6 +448,7 @@ int main(int argc, char const *argv[])
         fprintf(stderr, "Listen error: %s\a\n", strerror(errno));
         exit(1);
     }
+    memset(online_info, 0, sizeof(protolcol_t) * MAX_USER_NUM);
     for ( i = 0; i < MAX_USER_NUM; i++)
     {
         online_info[i].fd = -1;
@@ -455,9 +465,20 @@ int main(int argc, char const *argv[])
         }
         // print_mcd("client ip = %s, port = %d", inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
         pconnsocket = (int *)malloc(sizeof(int));
+        if(pconnsocket == NULL)
+        {
+            print_mcd("pconnsocket malloc failed!");
+            exit(1);
+        }
         *pconnsocket = new_fd;
-
+        
+        //这里有多clinet 所以会创建多个子线程，为了释放子线程资源，还是用分离式比较方便把？
+        pthread_attr_t attr;
+        pthread_attr_init(&attr);
+        pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
         ret = pthread_create(&tid, NULL, rec_func, (void *)pconnsocket);
+        pthread_attr_destroy(&attr);
+        // print_mcd("tid = %ld", tid);
         if(ret < 0)
         {
             perror("pthread create error!");
@@ -467,7 +488,6 @@ int main(int argc, char const *argv[])
                 pconnsocket = NULL;
                 exit(1);
             }
-        
         }
         
     }
